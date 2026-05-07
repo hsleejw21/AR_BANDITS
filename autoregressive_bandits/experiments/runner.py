@@ -14,6 +14,7 @@ from autoregressive_bandits.algorithms.base import ObservationContext
 from autoregressive_bandits.environments import (
     RestlessAR1BanditEnv,
     RestlessVARBanditEnv,
+    StockReturnsBanditEnv,
     generate_clustered_transition_matrix,
 )
 from autoregressive_bandits.estimators import LeastSquaresAlphaEstimator
@@ -50,6 +51,8 @@ def run_experiment(config: ScenarioConfig, output_dir: str | Path) -> dict[str, 
     if estimated_parameters:
         with (output_dir / "estimated_parameters.json").open("w", encoding="utf-8") as f:
             json.dump(estimated_parameters, f, indent=2)
+    if config.environment_type == "stock_returns":
+        _write_stock_metadata(output_dir, config)
     with (output_dir / "summary.json").open("w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     _plot(rows, output_dir / "plots")
@@ -67,9 +70,13 @@ def _run_single_agent(
     calibration: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     env = _build_environment(config, seed)
+    n_arms = env.n_arms
+    horizon = _environment_horizon(config, env)
     params = {k: v for k, v in agent_cfg.items() if k not in {"type", "name"}}
     if config.environment_type == "restless_var":
         _set_var_agent_defaults(params, agent_cfg, config, env, calibration)
+    elif config.environment_type == "stock_returns":
+        _set_stock_agent_defaults(params, agent_cfg, config, env, calibration)
     else:
         params.setdefault("alpha", config.alpha)
         params.setdefault("sigma", config.sigma)
@@ -79,11 +86,11 @@ def _run_single_agent(
 
     agent_type = agent_cfg["type"]
     agent_cls = AGENT_REGISTRY[agent_type]
-    agent = agent_cls().reset(config.n_arms, config.horizon, seed=seed, **params)
+    agent = agent_cls().reset(n_arms, horizon, seed=seed, **params)
     cumulative_regret = 0.0
     rows = []
-    for t in range(config.horizon):
-        context = ObservationContext(t=t, n_arms=config.n_arms, horizon=config.horizon)
+    for t in range(horizon):
+        context = ObservationContext(t=t, n_arms=n_arms, horizon=horizon)
         action = agent.select_action(context)
         obs = env.step(action)
         agent.update(action, obs.reward, {"observation": obs})
@@ -109,6 +116,8 @@ def _run_single_agent(
 
 def _build_environment(config: ScenarioConfig, seed: int):
     if config.environment_type == "restless_ar1":
+        if config.n_arms is None or config.horizon is None:
+            raise ValueError("restless_ar1 requires n_arms and horizon")
         return RestlessAR1BanditEnv(
             n_arms=config.n_arms,
             alpha=config.alpha,
@@ -121,6 +130,8 @@ def _build_environment(config: ScenarioConfig, seed: int):
             seed=seed,
         )
     if config.environment_type == "restless_var":
+        if config.n_arms is None or config.horizon is None:
+            raise ValueError("restless_var requires n_arms and horizon")
         transition_matrix = config.transition_matrix
         if transition_matrix is None:
             transition_matrix = generate_clustered_transition_matrix(
@@ -139,7 +150,34 @@ def _build_environment(config: ScenarioConfig, seed: int):
             noise_scale=(config.var_generation or {}).get("noise_scale", config.sigma),
             seed=seed,
         )
+    if config.environment_type == "stock_returns":
+        return StockReturnsBanditEnv(
+            tickers=config.tickers,
+            tickers_preset=config.tickers_preset,
+            calibration_start=config.calibration_start,
+            calibration_end=config.calibration_end,
+            evaluation_start=config.evaluation_start,
+            evaluation_end=config.evaluation_end,
+            decision_frequency=config.decision_frequency,
+            reward_type=config.reward_type,
+            reward_scaling=config.reward_scaling,
+            reward_bound=config.reward_bound,
+            benchmark_ticker=config.benchmark_ticker,
+            price_field=config.price_field,
+            cache_dir=config.cache_dir,
+            force_download=config.force_download,
+            horizon=config.horizon,
+            seed=seed,
+        )
     raise ValueError(f"Unknown environment_type: {config.environment_type}")
+
+
+def _environment_horizon(config: ScenarioConfig, env: Any) -> int:
+    if config.environment_type == "stock_returns":
+        return int(len(env.evaluation_rewards))
+    if config.horizon is None:
+        raise ValueError(f"{config.environment_type} requires horizon")
+    return int(config.horizon)
 
 
 def _set_var_agent_defaults(
@@ -172,8 +210,40 @@ def _set_var_agent_defaults(
         params.setdefault("sigma", env.noise_scale.tolist())
 
 
+def _set_stock_agent_defaults(
+    params: dict[str, Any],
+    agent_cfg: dict[str, Any],
+    config: ScenarioConfig,
+    env: StockReturnsBanditEnv,
+    calibration: dict[str, Any] | None,
+) -> None:
+    agent_type = agent_cfg["type"]
+    if agent_type == "var_estimated_ar2":
+        if calibration is None:
+            raise ValueError("var_estimated_ar2 requires stock calibration")
+        params.setdefault("transition_matrix", calibration["transition_matrix_hat"].tolist())
+        params.setdefault("noise_scale", calibration["noise_scale"].tolist())
+    elif agent_type == "var_oracle_ar2":
+        if config.transition_matrix is None:
+            raise ValueError("Stock experiments do not have a true transition_matrix; use var_estimated_ar2")
+        params.setdefault("transition_matrix", config.transition_matrix)
+        params.setdefault("noise_scale", calibration["noise_scale"].tolist() if calibration else 0.1)
+    elif agent_type == "ar2":
+        if agent_cfg.get("estimate_alpha", False) or config.estimate_alpha:
+            if calibration is None:
+                raise ValueError("estimated AR2 in stock environment requires calibration")
+            params.setdefault("alpha", calibration["alpha_hat"].tolist())
+        else:
+            params.setdefault("alpha", config.alpha)
+        params.setdefault("sigma", calibration["noise_scale"].tolist() if calibration else config.sigma)
+    else:
+        if calibration is not None:
+            params.setdefault("alpha", calibration["alpha_hat"].tolist())
+            params.setdefault("sigma", calibration["noise_scale"].tolist())
+
+
 def _get_calibration(config: ScenarioConfig, seed: int) -> dict[str, Any] | None:
-    if config.environment_type != "restless_var":
+    if config.environment_type not in {"restless_var", "stock_returns"}:
         return None
     needs_calibration = config.estimate_alpha or config.estimate_transition_matrix
     needs_calibration = needs_calibration or any(
@@ -186,32 +256,62 @@ def _get_calibration(config: ScenarioConfig, seed: int) -> dict[str, Any] | None
         raise ValueError("Only least_squares estimator is currently supported")
 
     env = _build_environment(config, seed + 10_000)
-    states = [env.state.copy()]
-    for _ in range(max(2, config.calibration_rounds)):
-        env.step(0)
-        states.append(env.state.copy())
-    states_array = np.asarray(states)
+    if config.environment_type == "stock_returns":
+        states_array = env.calibration_rewards.to_numpy(dtype=float)
+    else:
+        states = [env.state.copy()]
+        for _ in range(max(2, config.calibration_rounds)):
+            env.step(0)
+            states.append(env.state.copy())
+        states_array = np.asarray(states)
     target_radius = None
     if config.var_generation:
         target_radius = config.var_generation.get("spectral_radius")
     transition_matrix_hat = estimate_transition_matrix_ls(states_array, spectral_radius=target_radius)
     alpha_hat = estimate_alpha_vector_ls(states_array)
-    true_matrix = env.transition_matrix
+    residuals = _var_residuals(states_array, transition_matrix_hat)
+    noise_scale = np.maximum(np.std(residuals, axis=0), 1e-6) if len(residuals) else np.full(states_array.shape[1], 0.1)
     diagnostics = {
-        "calibration_rounds": config.calibration_rounds,
+        "calibration_rounds": int(states_array.shape[0]),
         "estimator": config.estimator,
         "alpha_hat": alpha_hat.tolist(),
-        "true_diagonal_alpha": np.clip(np.diag(true_matrix), 1e-6, 1 - 1e-6).tolist(),
         "transition_matrix_hat": transition_matrix_hat.tolist(),
-        "true_transition_matrix": true_matrix.tolist(),
-        "transition_frobenius_error": float(np.linalg.norm(transition_matrix_hat - true_matrix)),
-        "alpha_l2_error": float(np.linalg.norm(alpha_hat - np.clip(np.diag(true_matrix), 1e-6, 1 - 1e-6))),
+        "noise_scale": noise_scale.tolist(),
     }
+    if config.environment_type == "restless_var":
+        true_matrix = env.transition_matrix
+        true_alpha = np.clip(np.diag(true_matrix), 1e-6, 1 - 1e-6)
+        diagnostics.update(
+            {
+                "true_diagonal_alpha": true_alpha.tolist(),
+                "true_transition_matrix": true_matrix.tolist(),
+                "transition_frobenius_error": float(np.linalg.norm(transition_matrix_hat - true_matrix)),
+                "alpha_l2_error": float(np.linalg.norm(alpha_hat - true_alpha)),
+            }
+        )
+    else:
+        diagnostics.update(
+            {
+                "tickers": env.tickers,
+                "stock_metadata": env.metadata,
+                "return_correlation_matrix": env.calibration_rewards.corr().fillna(0.0).to_numpy().tolist(),
+            }
+        )
     return {
         "alpha_hat": alpha_hat,
         "transition_matrix_hat": transition_matrix_hat,
+        "noise_scale": noise_scale,
         "diagnostics": diagnostics,
     }
+
+
+def _var_residuals(states: np.ndarray, transition_matrix: np.ndarray) -> np.ndarray:
+    states = np.asarray(states, dtype=float)
+    if states.shape[0] < 2:
+        return np.empty((0, states.shape[1]), dtype=float)
+    x = states[:-1]
+    y = states[1:]
+    return y - x @ transition_matrix.T
 
 
 def _estimate_alpha_for_run(config: ScenarioConfig, seed: int) -> float:
@@ -319,9 +419,9 @@ def _write_experiment_readme(
         "",
         f"- Generated at: `{generated_at}`",
         f"- Environment: `{config.environment_type}`",
-        f"- Horizon: `{config.horizon}`",
+        f"- Horizon: `{config.horizon if config.horizon is not None else 'derived from environment'}`",
         f"- Runs: `{config.n_runs}`",
-        f"- Arms: `{config.n_arms}`",
+        f"- Arms: `{config.n_arms if config.n_arms is not None else 'derived from environment'}`",
         f"- Seed: `{config.seed}`",
     ]
     if config.description:
@@ -334,6 +434,17 @@ def _write_experiment_readme(
                 f"- Calibration rounds: `{config.calibration_rounds}`",
                 f"- Estimator: `{config.estimator}`",
                 f"- VAR generation: `{json.dumps(config.var_generation or {}, sort_keys=True)}`",
+            ]
+        )
+    if config.environment_type == "stock_returns":
+        lines.extend(
+            [
+                f"- Ticker preset: `{config.tickers_preset}`",
+                f"- Decision frequency: `{config.decision_frequency}`",
+                f"- Reward type: `{config.reward_type}`",
+                f"- Reward scaling: `{config.reward_scaling}`",
+                f"- Calibration period: `{config.calibration_start}` to `{config.calibration_end}`",
+                f"- Evaluation period: `{config.evaluation_start}` to `{config.evaluation_end}`",
             ]
         )
     lines.extend(
@@ -350,6 +461,8 @@ def _write_experiment_readme(
     )
     if has_estimated_parameters:
         lines.append("- `estimated_parameters.json`: run-wise calibration estimates and true-vs-estimated diagnostics.")
+    if config.environment_type == "stock_returns":
+        lines.append("- `stock_metadata.json`: ticker universe, aligned dates, preprocessing, and correlation diagnostics.")
     lines.extend(["", "## Final Summary", ""])
     lines.append("| Agent | Final Regret | Normalized Regret | Optimal Pull Ratio | Mean Reward |")
     lines.append("|---|---:|---:|---:|---:|")
@@ -384,6 +497,15 @@ def _update_experiment_index(output_dir: Path, config: ScenarioConfig, summary: 
         "seed": config.seed,
         "description": config.description,
         "tags": ",".join(config.tags),
+        "tickers_preset": config.tickers_preset or "",
+        "decision_frequency": config.decision_frequency if config.environment_type == "stock_returns" else "",
+        "reward_type": config.reward_type if config.environment_type == "stock_returns" else "",
+        "calibration_period": (
+            f"{config.calibration_start}:{config.calibration_end}" if config.environment_type == "stock_returns" else ""
+        ),
+        "evaluation_period": (
+            f"{config.evaluation_start}:{config.evaluation_end}" if config.environment_type == "stock_returns" else ""
+        ),
         "final_regrets_json": json.dumps(agents_summary, sort_keys=True),
     }
     rows: list[dict[str, Any]] = []
@@ -396,3 +518,15 @@ def _update_experiment_index(output_dir: Path, config: ScenarioConfig, summary: 
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _write_stock_metadata(output_dir: Path, config: ScenarioConfig) -> None:
+    env = _build_environment(config, config.seed)
+    metadata = dict(env.metadata)
+    metadata["tickers"] = env.tickers
+    metadata["calibration_reward_dates"] = [str(idx.date()) for idx in env.calibration_rewards.index]
+    metadata["evaluation_reward_dates"] = [str(idx.date()) for idx in env.evaluation_rewards.index]
+    metadata["calibration_reward_shape"] = list(env.calibration_rewards.shape)
+    metadata["evaluation_reward_shape"] = list(env.evaluation_rewards.shape)
+    with (output_dir / "stock_metadata.json").open("w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2)

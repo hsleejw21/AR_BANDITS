@@ -10,7 +10,9 @@ requires-python = ">=3.10"
 dependencies = [
   "numpy",
   "matplotlib",
-  "PyYAML"
+  "pandas",
+  "PyYAML",
+  "yfinance"
 ]
 
 [tool.setuptools.packages.find]

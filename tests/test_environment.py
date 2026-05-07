@@ -1,8 +1,11 @@
 import numpy as np
+import pandas as pd
 
 from autoregressive_bandits.environments import (
     RestlessAR1BanditEnv,
     RestlessVARBanditEnv,
+    StockReturnsBanditEnv,
+    build_stock_dataset,
     generate_clustered_transition_matrix,
 )
 
@@ -94,3 +97,72 @@ def test_var_environment_same_seed_same_hidden_path_independent_of_action():
 
     for a, b in zip(states_a, states_b):
         np.testing.assert_allclose(a, b)
+
+
+def test_stock_dataset_daily_weekly_and_scaling_use_calibration_only():
+    dates = pd.date_range("2020-01-01", periods=60, freq="D")
+    prices = pd.DataFrame(
+        {
+            "AAA": np.arange(10, 70, dtype=float),
+            "BBB": np.arange(20, 140, 2, dtype=float),
+        },
+        index=dates,
+    )
+
+    daily = build_stock_dataset(
+        tickers=["AAA", "BBB"],
+        calibration_start=pd.Timestamp("2020-01-01"),
+        calibration_end=pd.Timestamp("2020-01-24"),
+        evaluation_start=pd.Timestamp("2020-01-25"),
+        evaluation_end=pd.Timestamp("2020-02-29"),
+        decision_frequency="1d",
+        reward_type="simple_return",
+        reward_scaling="standardize_by_calibration",
+        price_data=prices,
+    )
+    weekly = build_stock_dataset(
+        tickers=["AAA", "BBB"],
+        calibration_start=pd.Timestamp("2020-01-01"),
+        calibration_end=pd.Timestamp("2020-01-24"),
+        evaluation_start=pd.Timestamp("2020-01-25"),
+        evaluation_end=pd.Timestamp("2020-02-29"),
+        decision_frequency="1wk",
+        reward_type="simple_return",
+        reward_scaling="none",
+        price_data=prices,
+    )
+
+    assert daily.calibration_rewards.index.max() <= pd.Timestamp("2020-01-24")
+    assert daily.evaluation_rewards.index.min() >= pd.Timestamp("2020-01-25")
+    assert "scaling_mean" in daily.metadata
+    assert len(weekly.evaluation_rewards) >= 1
+
+
+def test_stock_environment_returns_reward_best_arm_and_regret():
+    dates = pd.date_range("2020-01-01", periods=8, freq="D")
+    prices = pd.DataFrame(
+        {
+            "AAA": [10, 11, 12, 13, 14, 16, 17, 18],
+            "BBB": [10, 10, 10, 10, 10, 20, 19, 18],
+        },
+        index=dates,
+        dtype=float,
+    )
+    env = StockReturnsBanditEnv(
+        tickers=["AAA", "BBB"],
+        calibration_start="2020-01-01",
+        calibration_end="2020-01-05",
+        evaluation_start="2020-01-06",
+        evaluation_end="2020-01-08",
+        decision_frequency="1d",
+        reward_type="simple_return",
+        reward_scaling="none",
+        price_data=prices,
+    )
+
+    obs = env.step(0)
+
+    assert obs.action == 0
+    assert obs.best_arm == 1
+    assert obs.reward < obs.best_reward
+    assert obs.regret == obs.best_reward - obs.reward

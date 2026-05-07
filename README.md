@@ -1,26 +1,17 @@
 # AR2 Replication And Extension Framework
 
-This package implements an AR2-focused experiment framework for restless autoregressive bandits. It is meant to support three near-term goals:
+This package implements an AR2-focused experiment framework for restless per-arm AR(1) bandits. It is meant to support two near-term goals:
 
 - replicate and inspect the AR2 algorithm from `Non-Stationary Bandits with Auto-Regressive Temporal Dependency`;
-- compare AR2 extensions against the original AR2 algorithm and classic baselines under the same synthetic runner;
-- test whether a VAR2-style extension can improve decisions when reward arms are correlated.
+- compare future AR2 extensions against the original AR2 algorithm and classic baselines under the same synthetic runner.
 
-The AR2 baseline environment assumes independent per-arm AR(1) reward states. By default it uses the paper-style additive update
+The baseline AR2 environment assumes independent per-arm AR(1) reward states. By default it uses the paper-style additive update
 
 ```text
 r_i(t+1) = clip(alpha * r_i(t) + epsilon_i(t), -R, R)
 ```
 
-where `epsilon_i(t)` is sampled independently from `Normal(0, sigma)`.
-
-The VAR2 research track adds a correlated hidden reward process:
-
-```text
-r(t+1) = clip(A @ r(t) + epsilon(t), -R, R)
-```
-
-All agents still observe only the reward of the selected arm. The evaluator uses the hidden full reward vector only to compute regret, best arm, and optimal-pull ratio.
+where `epsilon_i(t)` is sampled independently from `Normal(0, sigma)`. The project also includes correlated synthetic VAR environments and a yfinance-backed stock-return environment for testing whether cross-arm correlation improves AR2-style decision making.
 
 ## Quick Start
 
@@ -79,14 +70,22 @@ python -m autoregressive_bandits.experiments.run --config configs/var_known_unkn
 
 This compares `AR2-Known`, `AR2-Estimated`, `VAR2-Known`, and `VAR2-Estimated` in the same VAR environment. The estimated variants use a separate full-state calibration trajectory and least-squares estimates; calibration regret is not counted in the online regret metrics.
 
+Run the first stock-data experiment:
+
+```bash
+python -m autoregressive_bandits.experiments.run --config configs/stock/stock_tech_daily_2020_2024.json --output outputs/stock_tech_daily_2020_2024
+```
+
+The stock track uses `environment_type = "stock_returns"` with yfinance data cached under `data/cache/yfinance/`. It estimates AR2/VAR2 parameters from a past calibration period, then evaluates the algorithms on a future historical reward path. Decision frequency (`1d`, `1wk`, `1mo`), date ranges, ticker presets, and reward definitions are configurable.
+
 Outputs include:
 
 - `scenario.json`
 - `metrics.csv`
 - `summary.json`
-- `estimated_parameters.json` for known-vs-estimated VAR experiments
 - `plots/cumulative_regret.png`
 - `plots/optimal_pull_ratio.png`
+- stock runs also include `stock_metadata.json`
 
 The example configs use `c0 = 0.01` for AR2. This is a practical trigger calibration for clipped rewards in `[-1, 1]`; the conservative theoretical trigger constant can still be used by setting `"theoretical_c0": true` in an AR2 agent config.
 
@@ -96,8 +95,9 @@ The example configs use `c0 = 0.01` for AR2. This is a practical trigger calibra
 - `autoregressive_bandits/environments/`: restless AR(1) and VAR synthetic environments.
 - `autoregressive_bandits/estimators/`: alpha estimation utilities for AR2 experiments.
 - `autoregressive_bandits/experiments/`: config loading, simulation runner, plotting, and CLI entry points.
-- `configs/`: runnable AR2 and VAR2 experiment configs.
+- `configs/`: runnable AR2 experiment configs.
 - `docs/references/`: AR2 paper and local implementation notes.
+- `docs/STOCK_VAR2_RESEARCH_ROADMAP.md`: stock-data research goals and extension roadmap.
 - `tests/`: unit and integration tests.
 
 ## Algorithms
@@ -113,6 +113,6 @@ Registered algorithms:
 
 Add a new algorithm by subclassing `autoregressive_bandits.algorithms.base.Agent`, registering it in `autoregressive_bandits/algorithms/__init__.py`, and adding it to a scenario config.
 
-## Research Direction
+## Next Research Direction
 
-The current research question is whether an AR2-style algorithm can do better when it propagates information across correlated arms. `VAR2-Known` uses the true transition matrix `A`; `VAR2-Estimated` uses a least-squares estimate from a separate calibration trajectory. These are compared against `AR2-Known`, `AR2-Estimated`, UCB1, epsilon-greedy, and random on the same hidden reward paths.
+The current research track is to compare original AR2 with VAR2-style extensions on synthetic correlated rewards and historical stock-return paths. The roadmap in `docs/STOCK_VAR2_RESEARCH_ROADMAP.md` describes the next steps: richer reward definitions, same-cluster versus mixed-cluster stock universes, ridge/sparse/rolling VAR2, and eventually regret-bound assumptions for cross-arm AR2 extensions.
