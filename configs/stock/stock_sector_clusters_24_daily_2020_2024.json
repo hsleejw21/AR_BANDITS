@@ -1,0 +1,24 @@
+{
+  "name": "stock_sector_clusters_24_daily_2020_2024",
+  "description": "Daily 24-arm multi-cluster universe spanning technology, finance, energy, healthcare, and consumer stocks. This is the first larger-arm stock test for estimated VAR2.",
+  "tags": ["stock", "daily", "multi-cluster", "24-arms", "large-arms"],
+  "environment_type": "stock_returns",
+  "tickers_preset": "sector_clusters_24",
+  "calibration_start": "2020-01-01",
+  "calibration_end": "2022-12-31",
+  "evaluation_start": "2023-01-01",
+  "evaluation_end": "2024-12-31",
+  "decision_frequency": "1d",
+  "reward_type": "log_return",
+  "reward_scaling": "standardize_by_calibration",
+  "reward_bound": 1.0,
+  "n_runs": 20,
+  "seed": 7030,
+  "agents": [
+    {"type": "var_estimated_ar2", "name": "VAR2-Estimated", "c0": 0.01},
+    {"type": "ar2", "name": "AR2-Estimated", "estimate_alpha": true, "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "random", "name": "Random"}
+  ]
+}
