@@ -31,6 +31,30 @@ def estimate_transition_matrix_ls(
     return matrix
 
 
+def estimate_transition_matrix_ridge(
+    states: np.ndarray,
+    ridge_lambda: float = 1.0,
+    spectral_radius: float | None = None,
+) -> np.ndarray:
+    """Estimate A in r(t+1) = A @ r(t) with ridge-regularized least squares."""
+
+    if ridge_lambda < 0:
+        raise ValueError("ridge_lambda must be non-negative")
+    states = _validate_states(states)
+    x = states[:-1]
+    y = states[1:]
+    n_features = x.shape[1]
+    regularized_gram = x.T @ x + float(ridge_lambda) * np.eye(n_features)
+    try:
+        coef = np.linalg.solve(regularized_gram, x.T @ y)
+    except np.linalg.LinAlgError:
+        coef, *_ = np.linalg.lstsq(regularized_gram, x.T @ y, rcond=None)
+    matrix = coef.T
+    if spectral_radius is not None:
+        matrix = rescale_spectral_radius(matrix, spectral_radius)
+    return matrix
+
+
 def rescale_spectral_radius(matrix: np.ndarray, target_radius: float) -> np.ndarray:
     matrix = np.asarray(matrix, dtype=float)
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:

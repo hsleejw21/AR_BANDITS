@@ -78,6 +78,8 @@ python -m autoregressive_bandits.experiments.run --config configs/stock/stock_te
 
 The stock track uses `environment_type = "stock_returns"` with yfinance data cached under `data/cache/yfinance/`. It estimates AR2/VAR2 parameters from a past calibration period, then evaluates the algorithms on a future historical reward path. Decision frequency (`1d`, `1wk`, `1mo`), date ranges, ticker presets, and reward definitions are configurable.
 
+For larger stock universes, configs can set `estimator = "ridge"` and `ridge_lambda` to stabilize the VAR2 transition estimate. This is useful because the full VAR matrix has `n_arms x n_arms` coefficients.
+
 Outputs include:
 
 - `scenario.json`

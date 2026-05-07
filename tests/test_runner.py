@@ -181,3 +181,50 @@ def test_runner_runs_stock_scenario_from_cached_prices(tmp_path):
     for row in rows:
         states_by_agent.setdefault(row["agent"], []).append(row["state"])
     assert states_by_agent["VAR2-Estimated"] == states_by_agent["UCB1"]
+
+
+def test_runner_stock_scenario_supports_ridge_transition_estimator(tmp_path):
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    prices = pd.DataFrame(
+        {
+            "AAA": [10, 10.5, 11, 12, 13, 14, 15, 16, 17, 18],
+            "BBB": [20, 20.2, 20.1, 20.5, 21, 23, 22, 24, 25, 26],
+            "CCC": [30, 29, 30, 31, 30, 32, 33, 31, 34, 35],
+        },
+        index=pd.date_range("2020-01-01", periods=10, freq="D"),
+    )
+    cache_path = cache_dir / "AAA_BBB_CCC_2020-01-01_2020-01-10_Close.csv"
+    prices.to_csv(cache_path)
+
+    config = ScenarioConfig(
+        name="tiny_stock_ridge",
+        environment_type="stock_returns",
+        tickers=["AAA", "BBB", "CCC"],
+        calibration_start="2020-01-01",
+        calibration_end="2020-01-05",
+        evaluation_start="2020-01-06",
+        evaluation_end="2020-01-10",
+        decision_frequency="1d",
+        reward_type="simple_return",
+        reward_scaling="standardize_by_calibration",
+        reward_bound=1.0,
+        cache_dir=str(cache_dir),
+        estimator="ridge",
+        ridge_lambda=2.0,
+        transition_spectral_radius=0.9,
+        n_runs=1,
+        seed=11,
+        agents=[
+            {"type": "var_estimated_ar2", "name": "VAR2-Ridge", "epoch_size": 5},
+            {"type": "ar2", "name": "AR2-Estimated", "estimate_alpha": True, "epoch_size": 5},
+        ],
+    )
+
+    run_experiment(config, tmp_path / "out")
+
+    with (tmp_path / "out" / "estimated_parameters.json").open() as f:
+        estimates = json.load(f)
+    assert estimates["0"]["estimator"] == "ridge"
+    assert estimates["0"]["ridge_lambda"] == 2.0
+    assert estimates["0"]["transition_spectral_radius"] == 0.9

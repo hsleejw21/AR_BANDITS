@@ -26,5 +26,12 @@ Larger-arm cluster experiments:
 - `stock_sector_clusters_24_daily_2020_2024.json`: 24 stocks across five broad sector groups.
 - `stock_broad_market_36_daily_2020_2024.json`: 36 stocks across a broader market universe.
 - `stock_sector_clusters_24_weekly_2015_2024.json`: 24 stocks at weekly frequency with a longer calibration period.
+- `stock_sector_clusters_24_daily_2010_2024.json`: 24 stocks with 2010-2021 daily calibration and plain least-squares VAR2.
+- `stock_sector_clusters_24_daily_2010_2024_ridge.json`: the same 24-stock setting with ridge VAR2.
+- `stock_broad_market_36_daily_2010_2024.json`: 36 stocks with long daily calibration and plain least-squares VAR2.
+- `stock_broad_market_36_daily_2010_2024_ridge.json`: the same 36-stock setting with ridge VAR2.
+- `stock_broad_market_50_weekly_2010_2024_ridge.json`: 50 stocks at weekly frequency with ridge VAR2.
 
 These are useful for testing whether VAR2's estimated cross-arm transition matrix helps more as the number of related arms grows.
+
+For larger universes, prefer the ridge configs first. Plain least squares estimates `n_arms x n_arms` transition coefficients, so it can become unstable when the number of arms grows.

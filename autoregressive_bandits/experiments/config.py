@@ -32,6 +32,8 @@ class ScenarioConfig:
     estimation_rounds: int = 100
     calibration_rounds: int = 1000
     estimator: str = "least_squares"
+    ridge_lambda: float = 1.0
+    transition_spectral_radius: float | None = None
     tickers_preset: str | None = None
     tickers: list[str] | None = None
     calibration_start: str | None = None
@@ -76,6 +78,8 @@ class ScenarioConfig:
             "estimation_rounds": self.estimation_rounds,
             "calibration_rounds": self.calibration_rounds,
             "estimator": self.estimator,
+            "ridge_lambda": self.ridge_lambda,
+            "transition_spectral_radius": self.transition_spectral_radius,
             "tickers_preset": self.tickers_preset,
             "tickers": self.tickers,
             "calibration_start": self.calibration_start,

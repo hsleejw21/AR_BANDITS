@@ -4,6 +4,7 @@ from autoregressive_bandits.estimators import (
     estimate_alpha_ls,
     estimate_alpha_vector_ls,
     estimate_transition_matrix_ls,
+    estimate_transition_matrix_ridge,
     rescale_spectral_radius,
 )
 
@@ -38,3 +39,24 @@ def test_rescale_spectral_radius_caps_unstable_matrix():
     scaled = rescale_spectral_radius(matrix, 0.9)
 
     assert max(abs(np.linalg.eigvals(scaled))) <= 0.9 + 1e-12
+
+
+def test_ridge_transition_estimator_shrinks_coefficients():
+    transition = np.array([[0.6, 0.2], [0.1, 0.7]])
+    states = [np.array([1.0, -0.4])]
+    for _ in range(20):
+        states.append(transition @ states[-1])
+    states = np.asarray(states)
+
+    ls = estimate_transition_matrix_ls(states)
+    ridge = estimate_transition_matrix_ridge(states, ridge_lambda=10.0)
+
+    assert np.linalg.norm(ridge) < np.linalg.norm(ls)
+
+
+def test_ridge_transition_estimator_respects_spectral_radius_cap():
+    states = np.array([[1.0, 0.0], [2.0, 0.0], [4.0, 0.0], [8.0, 0.0]])
+
+    estimated = estimate_transition_matrix_ridge(states, ridge_lambda=0.0, spectral_radius=0.8)
+
+    assert max(abs(np.linalg.eigvals(estimated))) <= 0.8 + 1e-12

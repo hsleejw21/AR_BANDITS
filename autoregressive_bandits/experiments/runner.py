@@ -18,7 +18,11 @@ from autoregressive_bandits.environments import (
     generate_clustered_transition_matrix,
 )
 from autoregressive_bandits.estimators import LeastSquaresAlphaEstimator
-from autoregressive_bandits.estimators import estimate_alpha_vector_ls, estimate_transition_matrix_ls
+from autoregressive_bandits.estimators import (
+    estimate_alpha_vector_ls,
+    estimate_transition_matrix_ls,
+    estimate_transition_matrix_ridge,
+)
 from autoregressive_bandits.experiments.config import ScenarioConfig
 
 
@@ -252,8 +256,8 @@ def _get_calibration(config: ScenarioConfig, seed: int) -> dict[str, Any] | None
     )
     if not needs_calibration:
         return None
-    if config.estimator != "least_squares":
-        raise ValueError("Only least_squares estimator is currently supported")
+    if config.estimator not in {"least_squares", "ridge"}:
+        raise ValueError("estimator must be 'least_squares' or 'ridge'")
 
     env = _build_environment(config, seed + 10_000)
     if config.environment_type == "stock_returns":
@@ -265,15 +269,26 @@ def _get_calibration(config: ScenarioConfig, seed: int) -> dict[str, Any] | None
             states.append(env.state.copy())
         states_array = np.asarray(states)
     target_radius = None
-    if config.var_generation:
+    if config.transition_spectral_radius is not None:
+        target_radius = config.transition_spectral_radius
+    elif config.var_generation:
         target_radius = config.var_generation.get("spectral_radius")
-    transition_matrix_hat = estimate_transition_matrix_ls(states_array, spectral_radius=target_radius)
+    if config.estimator == "ridge":
+        transition_matrix_hat = estimate_transition_matrix_ridge(
+            states_array,
+            ridge_lambda=config.ridge_lambda,
+            spectral_radius=target_radius,
+        )
+    else:
+        transition_matrix_hat = estimate_transition_matrix_ls(states_array, spectral_radius=target_radius)
     alpha_hat = estimate_alpha_vector_ls(states_array)
     residuals = _var_residuals(states_array, transition_matrix_hat)
     noise_scale = np.maximum(np.std(residuals, axis=0), 1e-6) if len(residuals) else np.full(states_array.shape[1], 0.1)
     diagnostics = {
         "calibration_rounds": int(states_array.shape[0]),
         "estimator": config.estimator,
+        "ridge_lambda": config.ridge_lambda if config.estimator == "ridge" else None,
+        "transition_spectral_radius": target_radius,
         "alpha_hat": alpha_hat.tolist(),
         "transition_matrix_hat": transition_matrix_hat.tolist(),
         "noise_scale": noise_scale.tolist(),

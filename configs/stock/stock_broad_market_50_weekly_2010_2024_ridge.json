@@ -1,0 +1,27 @@
+{
+  "name": "stock_broad_market_50_weekly_2010_2024_ridge",
+  "description": "Weekly 50-arm broad-market universe with long calibration and ridge-regularized VAR2. This is a high-arm stress test where plain least squares would likely be unstable.",
+  "tags": ["stock", "weekly", "broad-market", "50-arms", "long-calibration", "ridge"],
+  "environment_type": "stock_returns",
+  "tickers_preset": "broad_market_50",
+  "calibration_start": "2010-01-01",
+  "calibration_end": "2021-12-31",
+  "evaluation_start": "2022-01-01",
+  "evaluation_end": "2024-12-31",
+  "decision_frequency": "1wk",
+  "reward_type": "log_return",
+  "reward_scaling": "standardize_by_calibration",
+  "reward_bound": 1.0,
+  "estimator": "ridge",
+  "ridge_lambda": 25.0,
+  "transition_spectral_radius": 0.99,
+  "n_runs": 20,
+  "seed": 7044,
+  "agents": [
+    {"type": "var_estimated_ar2", "name": "VAR2-Ridge", "c0": 0.01},
+    {"type": "ar2", "name": "AR2-Estimated", "estimate_alpha": true, "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "random", "name": "Random"}
+  ]
+}
