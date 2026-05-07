@@ -17,3 +17,11 @@ python -m autoregressive_bandits.experiments.run \
   --config configs/stock/stock_tech_daily_2020_2024.json \
   --output outputs/stock_tech_daily_2020_2024
 ```
+
+Larger-arm cluster experiments:
+
+- `stock_tech_extended_daily_2020_2024.json`: 10 technology stocks in one broad cluster.
+- `stock_two_cluster_tech_finance_daily_2020_2024.json`: 12 stocks across technology and finance.
+- `stock_three_cluster_tech_finance_energy_daily_2020_2024.json`: 18 stocks across technology, finance, and energy.
+
+These are useful for testing whether VAR2's estimated cross-arm transition matrix helps more as the number of related arms grows.
