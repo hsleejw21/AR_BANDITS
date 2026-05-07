@@ -1,0 +1,19 @@
+{
+  "name": "example_ar2",
+  "horizon": 5000,
+  "n_arms": 5,
+  "alpha": 0.9,
+  "sigma": 0.1,
+  "reward_bound": 1.0,
+  "noise_model": "additive",
+  "n_runs": 50,
+  "seed": 7,
+  "estimate_alpha": false,
+  "estimation_rounds": 100,
+  "agents": [
+    {"type": "ar2", "name": "AR2", "c0": 0.01},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "random", "name": "Random"}
+  ]
+}

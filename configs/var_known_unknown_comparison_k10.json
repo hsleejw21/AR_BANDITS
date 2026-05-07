@@ -1,0 +1,32 @@
+{
+  "name": "var_known_unknown_comparison_k10",
+  "environment_type": "restless_var",
+  "horizon": 5000,
+  "n_arms": 10,
+  "sigma": 0.1,
+  "reward_bound": 1.0,
+  "initial_state_mode": "stationary",
+  "n_runs": 50,
+  "seed": 5252,
+  "estimate_alpha": false,
+  "estimate_transition_matrix": true,
+  "calibration_rounds": 1000,
+  "estimator": "least_squares",
+  "var_generation": {
+    "n_clusters": 2,
+    "self_persistence": 0.72,
+    "within_cluster_strength": 0.14,
+    "cross_cluster_strength": 0.015,
+    "spectral_radius": 0.9,
+    "noise_scale": 0.1
+  },
+  "agents": [
+    {"type": "var_oracle_ar2", "name": "VAR2-Known", "c0": 0.01},
+    {"type": "var_estimated_ar2", "name": "VAR2-Estimated", "c0": 0.01},
+    {"type": "ar2", "name": "AR2-Known", "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "ar2", "name": "AR2-Estimated", "estimate_alpha": true, "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "random", "name": "Random"}
+  ]
+}

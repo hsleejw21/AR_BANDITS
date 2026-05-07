@@ -1,0 +1,34 @@
+{
+  "name": "var_sweep_dense_noisy_cal1000_k10",
+  "description": "Dense and noisy cross-arm dependence. This tests whether VAR2 remains useful when correlation is less clean and observation noise is high.",
+  "tags": ["var2", "known-vs-estimated", "dense-correlation", "high-noise", "calibration-1000"],
+  "environment_type": "restless_var",
+  "horizon": 2000,
+  "n_arms": 10,
+  "sigma": 0.18,
+  "reward_bound": 1.0,
+  "initial_state_mode": "stationary",
+  "n_runs": 20,
+  "seed": 6103,
+  "estimate_alpha": false,
+  "estimate_transition_matrix": true,
+  "calibration_rounds": 1000,
+  "estimator": "least_squares",
+  "var_generation": {
+    "n_clusters": 2,
+    "self_persistence": 0.65,
+    "within_cluster_strength": 0.18,
+    "cross_cluster_strength": 0.08,
+    "spectral_radius": 0.9,
+    "noise_scale": 0.18
+  },
+  "agents": [
+    {"type": "var_oracle_ar2", "name": "VAR2-Known", "c0": 0.01},
+    {"type": "var_estimated_ar2", "name": "VAR2-Estimated", "c0": 0.01},
+    {"type": "ar2", "name": "AR2-Known", "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "ar2", "name": "AR2-Estimated", "estimate_alpha": true, "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "random", "name": "Random"}
+  ]
+}

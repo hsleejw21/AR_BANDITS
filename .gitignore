@@ -1,0 +1,28 @@
+# Python bytecode and test cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# Generated experiment artifacts
+outputs/
+
+# Downloaded or generated data caches
+data/cache/
+
+# Local machine/editor files
+.DS_Store
+.idea/
+.vscode/

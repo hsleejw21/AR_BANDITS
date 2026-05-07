@@ -1,0 +1,20 @@
+{
+  "name": "ar2_favorable_high_persistence_k10",
+  "environment_type": "restless_ar1",
+  "horizon": 3000,
+  "n_arms": 10,
+  "alpha": 0.98,
+  "sigma": 0.1,
+  "reward_bound": 1.0,
+  "noise_model": "additive",
+  "n_runs": 50,
+  "seed": 91,
+  "estimate_alpha": false,
+  "estimation_rounds": 100,
+  "agents": [
+    {"type": "ar2", "name": "AR2", "c0": 0.01},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "random", "name": "Random"}
+  ]
+}

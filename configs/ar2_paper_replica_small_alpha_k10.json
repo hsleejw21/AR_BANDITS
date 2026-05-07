@@ -1,0 +1,59 @@
+{
+  "name": "ar2_paper_replica_small_alpha_k10",
+  "environment_type": "restless_ar1",
+  "horizon": 10000,
+  "n_arms": 10,
+  "alpha": [
+    0.41261,
+    0.211602,
+    0.287996,
+    0.350222,
+    0.498885,
+    0.494886,
+    0.543911,
+    0.496068,
+    0.416377,
+    0.287445
+  ],
+  "sigma": [
+    0.15278,
+    0.101936,
+    0.158653,
+    0.105676,
+    0.470102,
+    0.11268,
+    0.135998,
+    0.249653,
+    0.424109,
+    0.383287
+  ],
+  "reward_bound": 1.0,
+  "noise_model": "additive",
+  "initial_state_mode": "stationary",
+  "n_runs": 100,
+  "seed": 2028,
+  "estimate_alpha": false,
+  "estimation_rounds": 100,
+  "agents": [
+    {
+      "type": "ar2",
+      "name": "AR2",
+      "c0": 0.01,
+      "superior_mode": "max_estimate",
+      "triggered_selection": "ucb"
+    },
+    {
+      "type": "epsilon_greedy",
+      "name": "Epsilon Greedy",
+      "epsilon": 0.1
+    },
+    {
+      "type": "ucb1",
+      "name": "UCB1"
+    },
+    {
+      "type": "random",
+      "name": "Random"
+    }
+  ]
+}

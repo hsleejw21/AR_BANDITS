@@ -1,0 +1,20 @@
+{
+  "name": "ar2_paper_style_alpha08_k10",
+  "environment_type": "restless_ar1",
+  "horizon": 1000,
+  "n_arms": 10,
+  "alpha": 0.8,
+  "sigma": 0.2,
+  "reward_bound": 1.0,
+  "noise_model": "additive",
+  "n_runs": 50,
+  "seed": 7,
+  "estimate_alpha": false,
+  "estimation_rounds": 100,
+  "agents": [
+    {"type": "ar2", "name": "AR2", "c0": 0.02},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "random", "name": "Random"}
+  ]
+}

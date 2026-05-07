@@ -1,0 +1,34 @@
+{
+  "name": "var_sweep_weak_correlation_cal1000_k10",
+  "description": "Weak clustered cross-arm correlation. VAR2 should be close to AR2 because off-diagonal information is limited.",
+  "tags": ["var2", "known-vs-estimated", "weak-correlation", "calibration-1000"],
+  "environment_type": "restless_var",
+  "horizon": 2000,
+  "n_arms": 10,
+  "sigma": 0.1,
+  "reward_bound": 1.0,
+  "initial_state_mode": "stationary",
+  "n_runs": 20,
+  "seed": 6101,
+  "estimate_alpha": false,
+  "estimate_transition_matrix": true,
+  "calibration_rounds": 1000,
+  "estimator": "least_squares",
+  "var_generation": {
+    "n_clusters": 2,
+    "self_persistence": 0.82,
+    "within_cluster_strength": 0.025,
+    "cross_cluster_strength": 0.005,
+    "spectral_radius": 0.9,
+    "noise_scale": 0.1
+  },
+  "agents": [
+    {"type": "var_oracle_ar2", "name": "VAR2-Known", "c0": 0.01},
+    {"type": "var_estimated_ar2", "name": "VAR2-Estimated", "c0": 0.01},
+    {"type": "ar2", "name": "AR2-Known", "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "ar2", "name": "AR2-Estimated", "estimate_alpha": true, "c0": 0.01, "superior_mode": "max_estimate", "triggered_selection": "ucb"},
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "random", "name": "Random"}
+  ]
+}

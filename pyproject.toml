@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ar2-replication-framework"
+version = "0.1.0"
+description = "AR2 replication and baseline comparison framework"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "matplotlib",
+  "PyYAML"
+]
+
+[tool.setuptools.packages.find]
+include = ["autoregressive_bandits*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

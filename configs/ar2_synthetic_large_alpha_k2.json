@@ -1,0 +1,18 @@
+{
+  "name": "ar2_synthetic_large_alpha_k2",
+  "environment_type": "restless_ar1",
+  "horizon": 10000,
+  "n_arms": 2,
+  "alpha": 0.9,
+  "sigma": 0.25,
+  "reward_bound": 1.0,
+  "noise_model": "additive",
+  "n_runs": 100,
+  "seed": 2026,
+  "agents": [
+    {"name": "AR2", "type": "ar2", "c0": 0.01},
+    {"name": "UCB1", "type": "ucb1"},
+    {"name": "Epsilon Greedy", "type": "epsilon_greedy", "epsilon": 0.1},
+    {"name": "Random", "type": "random"}
+  ]
+}
