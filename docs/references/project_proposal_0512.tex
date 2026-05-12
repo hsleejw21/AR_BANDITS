@@ -1,0 +1,121 @@
+\documentclass[11pt]{article}
+
+%---------- packages ----------
+\usepackage[a4paper,margin=0.85in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+\usepackage[round]{natbib}
+
+%---------- spacing ----------
+\setlength{\parskip}{2pt}
+\setlength{\parindent}{2pt}
+\renewcommand{\baselinestretch}{0.97}
+\titlespacing*{\section}{0pt}{3pt}{1.5pt}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection.}{0.5em}{}
+\titlespacing*{\paragraph}{0pt}{3pt}{0.5em}
+\setlist{nosep,leftmargin=1.3em,topsep=1pt,itemsep=1.5pt}
+
+%---------- title ----------
+\title{\vspace{-2em}\textbf{Project Proposal}}
+\author{Jungwoo Hong, 2026020393}
+\date{May 11, 2026}
+
+\begin{document}
+\maketitle
+
+%======================================================================
+\section{Project Type and Title}
+
+\begin{itemize}
+  \item \textbf{Title:} \emph{Non-Stationary Bandits with Autoregressive Reward Dynamics: A Comparative Study and Application to Stock Selection.}
+  \item \textbf{Type:} Option A
+  \item \textbf{Goal:} compare three recent algorithms designed for the same task -- multi-armed bandits whose rewards exhibit \emph{autoregressive (AR) temporal dependence} -- both theoretically and empirically on stock-return data.
+\end{itemize}
+
+%======================================================================
+\section{Target Problem}
+
+We consider a $K$-armed bandit problem in which, at each round $t = 1, \dots, T$, the learner pulls one arm $a_t \in [K]$ and observes a reward $r_{a_t}(t)$. Unlike the classical i.i.d.\ setting, the mean reward of each arm evolves over time according to an autoregressive process. In its simplest form,
+\[
+  r_i(t) \;=\; \alpha_i\, r_i(t-1) \;+\; \varepsilon_i(t),
+  \qquad \varepsilon_i(t) \sim \mathcal{N}(0,\sigma_i^2),
+\]
+or, more generally, an AR$(p)$ process whose parameters may depend on the chosen action, or be driven by a latent state. The goal is to minimize cumulative regret against a strong \emph{dynamic} benchmark that tracks the per-round best arm.
+
+%======================================================================
+\section{Motivation and Relevance to Statistical Machine Learning}
+ 
+Picking one stock to hold each day from a fixed pool is a sequential decision under uncertainty: only the chosen stock's return is observed, and the learner must trade off \emph{exploiting} stocks that have looked good against \emph{exploring} less-tried ones. This is exactly the structure of a multi-armed bandit (MAB) problem, with each stock playing the role of an arm. What makes stock returns interesting from a statistical machine learning perspective is that they violate the two assumptions on which most bandit theory rests: returns are neither i.i.d.\ across time nor adversarial. Instead, they are \emph{weakly autocorrelated} -- today's return carries some information about tomorrow's, and the conditional mean drifts over time -- and the autoregressive (AR) model is the canonical statistical tool for exactly this kind of dependence. The problem therefore connects three core themes of statistical machine learning at once: \emph{online learning under distribution shift}, \emph{time-series modeling}, and the \emph{exploration--exploitation trade-off}.
+ 
+\paragraph{Where this fits in the literature.}
+Classical MAB theory was developed in two extreme regimes: \emph{stochastic} rewards drawn i.i.d.\ from fixed distributions \citep{lai1985,auer2002ucb} and \emph{adversarial} rewards \citep{auer2002exp3}. Real environments sit between the two and are usually framed as \emph{restless bandits} \citep{whittle1988,ortner2012}, where rewards change over time according to some stochastic process. Most existing work in this regime \emph{tolerates} non-stationarity through generic devices -- sliding windows \citep{garivier2011swucb}, variation budgets \citep{besbes2014}, or smooth processes such as Brownian motion \citep{slivkins2008brownian} -- without modeling the reward dynamics explicitly. The three papers compared here represent a recent shift toward \emph{exploiting} that structure by placing AR-style time-series assumptions directly inside the bandit model.
+
+\newpage
+%======================================================================
+\section{Three Core Papers}
+\begin{itemize}
+  \item \citet{chen2023ar2} -- \textbf{NeurIPS 2023}. Each arm's expected reward independently follows an AR(1) process. Proposes \texttt{AR2} (Alternation + Restart) and proves nearly matching upper and lower regret bounds against the per-round dynamic benchmark.
+  \item \citet{bacchiocchi2024arucb} -- \textbf{AISTATS 2024}. The reward follows an AR$(k)$ process whose parameters \emph{depend on the chosen action}. Proposes \texttt{AR-UCB}, an optimistic algorithm with regret $\widetilde{O}((k+1)^{3/2}\sqrt{nT}/(1-\Gamma)^2)$. 
+  \item \citet{mussi2023dlb} -- \textbf{ICML 2023}. Rewards are driven by a \emph{hidden} linear dynamical system. Proposes \texttt{DynLin-UCB}, an epoch-based optimistic algorithm with regret $\widetilde{O}(d\sqrt{T}/(1-\rho)^{3/2})$, where $\rho$ bounds the spectral radius of the dynamics matrix.
+\end{itemize}
+
+\noindent The three methods make progressively different statistical assumptions about \emph{where} the temporal dynamics live, and their regret bounds all depend on a stability parameter ($\alpha$, $\Gamma$, $\rho$) that controls how quickly the system mixes:
+
+\begin{center}\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+& \textbf{Chen (\texttt{AR2})} & \textbf{Bacchiocchi (\texttt{AR-UCB})} & \textbf{Mussi (\texttt{DynLin-UCB})} \\
+\midrule
+Dynamics location  & observable, per arm        & observable, action-dep.   & hidden state          \\
+Reward model       & AR(1), independent arms    & AR$(k)$, action-dependent & linear (LTI) system   \\
+Mechanism          & alternation + restart      & UCB on AR predictions     & epoch-based persistence \\
+Stability param.   & $\alpha$                   & $\Gamma$                  & $\rho$                \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%======================================================================
+\section{Datasets, Experiments, and Evaluation Strategy}
+
+\paragraph{Datasets.}
+\begin{itemize}
+  \item \emph{Synthetic AR processes.} Reproduce the controlled simulations from each paper (per-arm AR(1), action-dependent AR$(k)$, latent linear dynamics) on a common grid varying $\alpha$, $\sigma$, $K$, and $T$.
+  \item \emph{US stock data.} Daily adjusted-close prices for a curated subset of S\&P~500 stocks, retrieved via the \texttt{yfinance} Python library. Each \emph{stock is one arm}; the per-round reward is the daily log-return. Stocks are screened so that arms exhibit measurable but heterogeneous AR structure (estimated by MLE on a held-out warm-up window).
+\end{itemize}
+
+\paragraph{Algorithms compared.}
+\begin{itemize}
+  \item Three core methods: \texttt{AR2}, \texttt{AR-UCB}, \texttt{DynLin-UCB} (the last via the canonical-basis encoding of the $K$-armed setting given in \citealp{mussi2023dlb}).
+  \item Standard baselines for context: UCB1, $\varepsilon$-greedy, SW-UCB, Rexp3.
+\end{itemize}
+
+\paragraph{Evaluation metrics.}
+\begin{itemize}
+  \item Per-round dynamic regret against the per-round best arm \citep{chen2023ar2}.
+  \item Cumulative reward and Sharpe ratio on real stock data.
+\end{itemize}
+
+\paragraph{Theoretical comparison.} A unified table will summarize each method's model assumptions, benchmark, regret rate, per-round computational cost, and robustness to misspecification.
+
+\paragraph{Optional extension.} If time permits, briefly explore extending the per-arm AR(1) model of \citet{chen2023ar2} to a \emph{Vector Autoregressive (VAR)} reward structure that captures cross-arm dependence directly.
+
+%======================================================================
+\section{Tentative Timeline}
+
+\begin{itemize}
+  \item \textbf{Weeks 1:} finalize reading of the three core papers; build a unified notation; implement the three algorithms and standard baselines; verify each on its paper's synthetic setup.
+  \item \textbf{Week 2:} run the unified synthetic benchmark; sensitivity studies on $\alpha$, $\sigma$, $K$, and AR-parameter estimation noise.
+  \item \textbf{Weeks 3:} curate the S\&P~500 dataset via \texttt{yfinance}; arm screening and warm-up AR estimation; real-data experiments; (optional) brief VAR extension prototype.
+  \item \textbf{Weeks 4:} write the final report and prepare the oral presentation.
+\end{itemize}
+
+%======================================================================
+\newpage
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

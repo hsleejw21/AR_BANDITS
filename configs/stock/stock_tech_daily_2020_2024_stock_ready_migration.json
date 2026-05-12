@@ -1,0 +1,43 @@
+{
+  "name": "stock_tech_daily_2020_2024_stock_ready_migration",
+  "description": "Daily tech-core stock adaptation comparing AR2 author preset, VAR2, AR-UCB, DynLin-UCB, and classic baselines.",
+  "tags": ["stock", "tech", "daily", "ar2-author", "ar-ucb-adaptation", "dynlin-ucb-adaptation"],
+  "environment_type": "stock_returns",
+  "tickers_preset": "tech_core",
+  "calibration_start": "2020-01-01",
+  "calibration_end": "2022-12-31",
+  "evaluation_start": "2023-01-01",
+  "evaluation_end": "2024-12-31",
+  "decision_frequency": "1d",
+  "reward_type": "log_return",
+  "reward_scaling": "standardize_by_calibration",
+  "reward_bound": 1.0,
+  "estimator": "ridge",
+  "ridge_lambda": 2.0,
+  "transition_spectral_radius": 0.9,
+  "n_runs": 20,
+  "seed": 7201,
+  "agents": [
+    {"type": "var_estimated_ar2", "name": "VAR2-Estimated", "c0": 0.01},
+    {
+      "type": "ar2",
+      "name": "AR2-Author-Preset",
+      "estimate_alpha": true,
+      "c0": 0.01,
+      "c1_multiplier": 8,
+      "superior_mode": "max_estimate",
+      "triggered_selection": "ucb"
+    },
+    {"type": "ar_ucb", "name": "AR-UCB-Stock", "ar_order": 2, "m_bound": 1.0, "lambda_": 1.0},
+    {
+      "type": "dynlin_ucb",
+      "name": "DynLin-UCB-Portfolio",
+      "rho_bar": 0.5,
+      "action_set": "one_hot_and_equal_baskets",
+      "basket_size": 2
+    },
+    {"type": "ucb1", "name": "UCB1"},
+    {"type": "epsilon_greedy", "name": "Epsilon Greedy", "epsilon": 0.1},
+    {"type": "random", "name": "Random"}
+  ]
+}

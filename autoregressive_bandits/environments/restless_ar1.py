@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -10,7 +11,7 @@ class StepObservation:
     """Observation returned after one bandit action."""
 
     t: int
-    action: int
+    action: Any
     reward: float
     best_arm: int
     best_reward: float

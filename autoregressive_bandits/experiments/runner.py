@@ -91,6 +91,8 @@ def _run_single_agent(
     agent_type = agent_cfg["type"]
     agent_cls = AGENT_REGISTRY[agent_type]
     agent = agent_cls().reset(n_arms, horizon, seed=seed, **params)
+    if config.environment_type == "stock_returns" and hasattr(agent, "action_set"):
+        env.portfolio_action_set = np.asarray(agent.action_set, dtype=float)
     cumulative_regret = 0.0
     rows = []
     for t in range(horizon):
@@ -105,7 +107,7 @@ def _run_single_agent(
                 "agent_type": agent_type,
                 "run": run_idx,
                 "t": t,
-                "action": action,
+                "action": _serialize_action(action),
                 "reward": obs.reward,
                 "best_arm": obs.best_arm,
                 "best_reward": obs.best_reward,
@@ -240,10 +242,21 @@ def _set_stock_agent_defaults(
         else:
             params.setdefault("alpha", config.alpha)
         params.setdefault("sigma", calibration["noise_scale"].tolist() if calibration else config.sigma)
+    elif agent_type == "ar_ucb":
+        params.setdefault("sigma", calibration["noise_scale"].tolist() if calibration else config.sigma)
+        params.setdefault("reward_bound", config.reward_bound)
+    elif agent_type == "dynlin_ucb":
+        params.setdefault("sigma", calibration["noise_scale"].tolist() if calibration else config.sigma)
     else:
         if calibration is not None:
             params.setdefault("alpha", calibration["alpha_hat"].tolist())
             params.setdefault("sigma", calibration["noise_scale"].tolist())
+
+
+def _serialize_action(action: Any) -> int | str:
+    if np.isscalar(action):
+        return int(action)
+    return json.dumps(np.asarray(action, dtype=float).tolist())
 
 
 def _get_calibration(config: ScenarioConfig, seed: int) -> dict[str, Any] | None:

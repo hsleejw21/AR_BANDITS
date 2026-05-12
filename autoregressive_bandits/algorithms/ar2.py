@@ -22,6 +22,7 @@ class AR2Agent(Agent):
         reward_bound: float = 1.0,
         epoch_size: int | None = None,
         c0: float | None = None,
+        c1_multiplier: float = 24.0,
         theoretical_c0: bool = False,
         superior_mode: str = "recent_two",
         triggered_selection: str = "earliest",
@@ -54,7 +55,8 @@ class AR2Agent(Agent):
             else:
                 c0 = 0.01
         self.c0 = float(c0)
-        self.c1 = 24.0 * self.c0
+        self.c1_multiplier = float(c1_multiplier)
+        self.c1 = self.c1_multiplier * self.c0
         self._restart_epoch()
         return self
 

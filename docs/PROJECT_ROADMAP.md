@@ -1,4 +1,35 @@
-# Stock VAR2 Research Roadmap
+# Project Roadmap: Autoregressive Bandits For Stock Experiments
+
+This document is the working plan for the project after the stock-ready migration. It records what the codebase currently supports, what should be checked before pushing to GitHub, and what research directions come next.
+
+## Current State
+
+The codebase now supports three experiment tracks:
+
+- Synthetic AR(1): original AR2-style restless per-arm autoregressive bandits.
+- Synthetic VAR: cross-arm reward dynamics through a transition matrix.
+- Historical stock returns: yfinance-backed reward paths with calibration and evaluation splits.
+
+Registered agents are:
+
+- `ar2`: original AR2-style agent, with configurable `c1_multiplier` for paper-style or author-code-style triggering.
+- `var_oracle_ar2` and `var_estimated_ar2`: VAR2-style AR2 agents for known or calibrated transition matrices.
+- `ar_ucb`: stock-picking adaptation of AR-UCB using lagged observed rewards.
+- `dynlin_ucb`: stock portfolio-action adaptation of DynLin-UCB over a finite action set.
+- `ucb1`, `epsilon_greedy`, and `random`: classic baselines.
+
+The stock-ready migration should be treated as a practical adaptation layer, not a claim that AR-UCB or DynLin-UCB are being run in their native paper environments.
+
+## Push Checklist
+
+Before pushing the next branch or opening a PR:
+
+- Run `pytest -q`.
+- Run at least one tiny cached stock integration test through the test suite.
+- Run one real or cached stock smoke experiment and confirm `metrics.csv`, `summary.json`, plots, and `stock_metadata.json` are written.
+- Inspect `metrics.csv` for vector-action rows from `dynlin_ucb`; actions should be JSON-serialized lists.
+- Confirm README commands still match existing config paths.
+- Keep generated outputs out of git unless a specific result artifact is intentionally being committed.
 
 ## Research Question
 
@@ -10,11 +41,13 @@ In this project:
 
 - AR2 estimates and exploits each arm's own temporal persistence.
 - VAR2 estimates and exploits a transition matrix across arms.
+- AR-UCB-Stock estimates per-arm autoregressive reward models from selected-stock reward history.
+- DynLin-UCB-Portfolio treats finite stock baskets as vector actions and learns an optimistic steady-reward parameter.
 - UCB1, epsilon-greedy, and random provide non-time-series baselines.
 
 The goal is not yet to claim deployable trading performance. The goal is to compare decision rules on the same historical reward paths and understand when cross-arm modeling helps or hurts.
 
-## Current Evidence
+## Current Evidence And Open Validation
 
 Synthetic VAR experiments already show a useful first pattern:
 
@@ -25,6 +58,8 @@ Synthetic VAR experiments already show a useful first pattern:
 
 This motivates a stock-data track where the arms are real tickers and the reward path is historical return data.
 
+The AR-UCB and DynLin-UCB stock adaptations still need empirical validation. The first question is not whether they beat all baselines, but whether their behavior is sensible and explainable under the shared stock runner.
+
 ## Stock Environment Design
 
 The stock environment uses yfinance price data and converts it into reward vectors.
@@ -32,9 +67,9 @@ The stock environment uses yfinance price data and converts it into reward vecto
 At each online step:
 
 1. The hidden state is the vector of rewards across all selected tickers for the current date or period.
-2. The agent chooses one ticker.
-3. The agent observes only that ticker's reward.
-4. The evaluator computes regret using the best ticker reward available in that same period.
+2. A scalar-action agent chooses one ticker, or a vector-action agent chooses a finite portfolio weight vector.
+3. The agent observes the selected ticker reward or portfolio reward.
+4. The evaluator computes regret using the best ticker reward or best candidate portfolio reward available in that same period.
 
 The default split is:
 
@@ -56,6 +91,17 @@ Different reward definitions answer different research questions.
 The default scaling is `standardize_by_calibration`, which uses only calibration-period mean and standard deviation before clipping rewards. This keeps the reward range compatible with the current AR2/VAR2 implementation and avoids using future evaluation statistics.
 
 ## Experiment Families
+
+### Stock-Ready Migration Smoke Tests
+
+Use `configs/stock/stock_tech_daily_2020_2024_stock_ready_migration.json` as the first end-to-end comparison.
+
+Expected checks:
+
+- AR2 author preset and VAR2-Estimated run without changing the historical reward path.
+- AR-UCB-Stock produces scalar ticker actions.
+- DynLin-UCB-Portfolio produces JSON-serialized vector actions in `metrics.csv`.
+- The same hidden stock return vectors are recorded for all agents at each time step.
 
 ### Same-Cluster Universes
 
@@ -106,7 +152,7 @@ Expected pattern:
 
 ## Future Algorithmic Extensions
 
-VAR2 is only the first cross-arm AR2-style prototype. Future versions can add richer time-series structure.
+VAR2, AR-UCB-Stock, and DynLin-UCB-Portfolio are first prototypes. Future versions can add richer time-series structure and cleaner financial evaluation.
 
 Promising directions:
 
@@ -114,6 +160,8 @@ Promising directions:
 - sparse VAR2 or Lasso-style transition estimation;
 - rolling-window VAR2 to adapt to changing market regimes;
 - online transition estimation from bandit feedback;
+- richer AR-UCB context definitions, such as per-stock lag windows instead of only selected-reward history;
+- richer DynLin-UCB action sets, such as sector baskets or constrained long-only portfolios;
 - regime-switching models;
 - factor models with market and sector latent factors;
 - state-space or Kalman-style models;
@@ -138,7 +186,6 @@ The first stock environment intentionally omits several trading details:
 
 - transaction costs;
 - slippage;
-- portfolio allocation;
 - shorting and leverage;
 - liquidity constraints;
 - risk limits;

@@ -1,7 +1,9 @@
 import numpy as np
 
 from autoregressive_bandits.algorithms.ar2 import AR2Agent
+from autoregressive_bandits.algorithms.ar_ucb import ARUCBAgent
 from autoregressive_bandits.algorithms.base import ObservationContext
+from autoregressive_bandits.algorithms.dynlin_ucb import DynLinUCBAgent
 from autoregressive_bandits.algorithms.var_oracle_ar2 import VAROracleAR2Agent
 
 
@@ -27,6 +29,25 @@ def test_ar2_default_trigger_constant_is_practical_but_theoretical_available():
 
     assert practical.c0 == 0.01
     assert theoretical.c0 > practical.c0
+
+
+def test_ar2_author_preset_uses_notebook_trigger_multiplier_and_ucb_selection():
+    agent = AR2Agent().reset(
+        3,
+        horizon=20,
+        seed=1,
+        alpha=0.9,
+        sigma=0.1,
+        epoch_size=20,
+        c0=0.01,
+        c1_multiplier=8,
+        superior_mode="max_estimate",
+        triggered_selection="ucb",
+    )
+
+    assert agent.c1 == 8 * agent.c0
+    assert agent.superior_mode == "max_estimate"
+    assert agent.triggered_selection == "ucb"
 
 
 def test_ar2_estimate_update_matches_recurrence():
@@ -93,3 +114,52 @@ def test_var_oracle_ar2_prediction_uses_transition_matrix_without_hidden_state()
     np.testing.assert_allclose(agent.est_rewards, transition @ np.array([0.8, 0.0]))
     assert np.all(np.isfinite(agent.est_cov))
     np.testing.assert_allclose(agent.est_cov, agent.est_cov.T)
+
+
+def test_ar_ucb_updates_only_selected_arm_and_slides_history():
+    agent = ARUCBAgent().reset(
+        3,
+        horizon=20,
+        seed=1,
+        ar_order=2,
+        m_bound=1.0,
+        sigma=0.1,
+        lambda_=1.0,
+        bootstrap_each_arm=False,
+    )
+
+    action = agent.select_action(_ctx(agent))
+    assert 0 <= action < 3
+    v_before = agent.v_inv.copy()
+    agent.update(1, 0.4, {})
+
+    assert not np.allclose(agent.v_inv[1], v_before[1])
+    np.testing.assert_allclose(agent.v_inv[0], v_before[0])
+    np.testing.assert_allclose(agent.v_inv[2], v_before[2])
+    np.testing.assert_allclose(agent.history, [0.4, 0.0])
+    assert np.all(np.isfinite([agent._beta(a) for a in range(3)]))
+
+
+def test_dynlin_ucb_persists_epoch_action_and_updates_on_final_reward_only():
+    agent = DynLinUCBAgent().reset(
+        3,
+        horizon=20,
+        seed=1,
+        rho_bar=0.5,
+        lambda_=1.0,
+        sigma=0.1,
+        action_set="one_hot",
+    )
+
+    first = agent.select_action(_ctx(agent))
+    agent.update(first, 0.1, {})
+    h_after_epoch_one = agent.h_hat.copy()
+
+    second = agent.select_action(_ctx(agent))
+    agent.update(second, 0.2, {})
+    np.testing.assert_allclose(agent.h_hat, h_after_epoch_one)
+    second_again = agent.select_action(_ctx(agent))
+    np.testing.assert_allclose(second_again, second)
+    agent.update(second_again, 0.3, {})
+
+    assert not np.allclose(agent.h_hat, h_after_epoch_one)

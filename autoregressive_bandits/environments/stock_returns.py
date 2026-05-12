@@ -276,23 +276,44 @@ class StockReturnsBanditEnv:
         self.state_history = [self.state.copy()]
         return self
 
-    def step(self, action: int) -> StepObservation:
-        if not 0 <= action < self.n_arms:
-            raise ValueError(f"action must be in [0, {self.n_arms})")
+    def step(self, action: int | list[float] | np.ndarray) -> StepObservation:
         current = self.evaluation_rewards.iloc[self.t].to_numpy(dtype=float)
-        reward = float(current[action])
-        best_arm = int(np.argmax(current))
-        best_reward = float(current[best_arm])
+        action_value: int | list[float]
+        if np.isscalar(action):
+            action_int = int(action)
+            if not 0 <= action_int < self.n_arms:
+                raise ValueError(f"action must be in [0, {self.n_arms})")
+            reward = float(current[action_int])
+            best_arm = int(np.argmax(current))
+            best_reward = float(current[best_arm])
+            optimal = action_int == best_arm
+            action_value = action_int
+        else:
+            weights = np.asarray(action, dtype=float)
+            if weights.shape != (self.n_arms,):
+                raise ValueError("vector action must have length n_arms")
+            reward = float(weights @ current)
+            action_set = getattr(self, "portfolio_action_set", None)
+            if action_set is None:
+                action_set = np.eye(self.n_arms, dtype=float)
+            action_set = np.asarray(action_set, dtype=float)
+            if action_set.ndim != 2 or action_set.shape[1] != self.n_arms:
+                raise ValueError("portfolio_action_set must have shape (n_actions, n_arms)")
+            action_rewards = action_set @ current
+            best_arm = int(np.argmax(action_rewards))
+            best_reward = float(action_rewards[best_arm])
+            optimal = bool(np.isclose(reward, best_reward))
+            action_value = weights.tolist()
         next_t = min(self.t + 1, len(self.evaluation_rewards) - 1)
         next_state = self.evaluation_rewards.iloc[next_t].to_numpy(dtype=float)
         obs = StepObservation(
             t=self.t,
-            action=int(action),
+            action=action_value,
             reward=reward,
             best_arm=best_arm,
             best_reward=best_reward,
             regret=best_reward - reward,
-            optimal=int(action) == best_arm,
+            optimal=optimal,
             state=current,
             next_state=next_state.copy(),
         )

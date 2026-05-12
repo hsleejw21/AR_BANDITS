@@ -164,6 +164,8 @@ def test_runner_runs_stock_scenario_from_cached_prices(tmp_path):
         seed=10,
         agents=[
             {"type": "var_estimated_ar2", "name": "VAR2-Estimated", "epoch_size": 5},
+            {"type": "ar_ucb", "name": "AR-UCB", "ar_order": 2, "m_bound": 1.0},
+            {"type": "dynlin_ucb", "name": "DynLin-UCB", "rho_bar": 0.5, "action_set": "one_hot"},
             {"type": "ar2", "name": "AR2-Estimated", "estimate_alpha": True, "epoch_size": 5},
             {"type": "ucb1", "name": "UCB1"},
             {"type": "random", "name": "Random"},
@@ -172,7 +174,7 @@ def test_runner_runs_stock_scenario_from_cached_prices(tmp_path):
 
     summary = run_experiment(config, tmp_path / "out")
 
-    assert set(summary["agents"]) == {"VAR2-Estimated", "AR2-Estimated", "UCB1", "Random"}
+    assert set(summary["agents"]) == {"VAR2-Estimated", "AR-UCB", "DynLin-UCB", "AR2-Estimated", "UCB1", "Random"}
     assert (tmp_path / "out" / "stock_metadata.json").exists()
     assert (tmp_path / "out" / "estimated_parameters.json").exists()
     with (tmp_path / "out" / "metrics.csv").open() as f:

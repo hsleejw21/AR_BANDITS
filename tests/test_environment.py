@@ -166,3 +166,35 @@ def test_stock_environment_returns_reward_best_arm_and_regret():
     assert obs.best_arm == 1
     assert obs.reward < obs.best_reward
     assert obs.regret == obs.best_reward - obs.reward
+
+
+def test_stock_environment_supports_vector_portfolio_action():
+    dates = pd.date_range("2020-01-01", periods=8, freq="D")
+    prices = pd.DataFrame(
+        {
+            "AAA": [10, 11, 12, 13, 14, 16, 17, 18],
+            "BBB": [10, 10, 10, 10, 10, 20, 19, 18],
+        },
+        index=dates,
+        dtype=float,
+    )
+    env = StockReturnsBanditEnv(
+        tickers=["AAA", "BBB"],
+        calibration_start="2020-01-01",
+        calibration_end="2020-01-05",
+        evaluation_start="2020-01-06",
+        evaluation_end="2020-01-08",
+        decision_frequency="1d",
+        reward_type="simple_return",
+        reward_scaling="none",
+        price_data=prices,
+    )
+    env.portfolio_action_set = np.array([[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]])
+
+    obs = env.step(np.array([0.5, 0.5]))
+
+    current = env.evaluation_rewards.iloc[0].to_numpy(dtype=float)
+    assert obs.action == [0.5, 0.5]
+    assert obs.best_arm == int(np.argmax(env.portfolio_action_set @ current))
+    assert obs.reward == float(np.array([0.5, 0.5]) @ current)
+    assert obs.regret == obs.best_reward - obs.reward
