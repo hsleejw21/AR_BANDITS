@@ -14,6 +14,16 @@ r_i(t+1) = clip(alpha * r_i(t) + epsilon_i(t), -R, R)
 
 where `epsilon_i(t)` is sampled independently from `Normal(0, sigma)`. The project also includes correlated synthetic VAR environments and a yfinance-backed stock-return environment for testing whether temporal and cross-arm structure improves stock-selection or portfolio-action decisions.
 
+## Research Basis
+
+This project is based on three recent autoregressive or dynamical bandit papers:
+
+- Qinyi Chen, Negin Golrezaei, and Djallel Bouneffouf, ["Non-Stationary Bandits with Auto-Regressive Temporal Dependency"](https://proceedings.neurips.cc/paper_files/paper/2023/hash/186a213d720568b31f9b59c085a23e5a-Abstract-Conference.html), NeurIPS 2023. This is the source for the AR2 algorithm, the per-arm autoregressive reward model, and the dynamic regret benchmark used as the starting point for this repository.
+- Francesco Bacchiocchi, Gianmarco Genalti, Davide Maran, Marco Mussi, Marcello Restelli, Nicola Gatti, and Alberto Maria Metelli, ["Autoregressive Bandits"](https://proceedings.mlr.press/v238/bacchiocchi24a.html), AISTATS 2024. This is the source for AR-UCB, which this repository adapts to stock picking through per-stock ridge/UCB models over lagged observed returns.
+- Marco Mussi, Alberto Maria Metelli, and Marcello Restelli, ["Dynamical Linear Bandits"](https://icml.cc/virtual/2023/poster/25263), ICML 2023. This is the source for DynLin-UCB, which this repository adapts to a finite stock portfolio action set.
+
+The current stock experiments are practical adaptations of these methods to historical equity returns. They are not intended to be exact reproductions of each paper's native experimental environment. The local project proposal in `docs/references/project_proposal_0512.tex` motivates the comparison, and the implementation references include the AR2 notebook/guide in `docs/references/`, plus the public author code repositories [`marcomussi/DLB`](https://github.com/marcomussi/DLB) and [`gianmarcogenalti/autoregressive-bandits`](https://github.com/gianmarcogenalti/autoregressive-bandits).
+
 ## Quick Start
 
 Run tests:
@@ -107,7 +117,7 @@ The example configs use `c0 = 0.01` for AR2. This is a practical trigger calibra
 - `autoregressive_bandits/estimators/`: alpha estimation utilities for AR2 experiments.
 - `autoregressive_bandits/experiments/`: config loading, simulation runner, plotting, and CLI entry points.
 - `configs/`: runnable AR2 experiment configs.
-- `docs/references/`: AR2 paper and local implementation notes.
+- `docs/references/`: local project proposal, AR2 paper material, implementation notes, and author-code reference notes.
 - `docs/PROJECT_ROADMAP.md`: current project status, near-term validation plan, and future research directions.
 - `tests/`: unit and integration tests.
 
